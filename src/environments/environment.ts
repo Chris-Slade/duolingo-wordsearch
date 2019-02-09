@@ -4,8 +4,7 @@
 
 export const environment = {
   production: false,
-  wordsearch: 'find_challenges.txt',
-  s3_url: 'http://localhost:3000/s3proxy',
+  puzzle_file: 'find_challenges.txt',
 };
 
 /*

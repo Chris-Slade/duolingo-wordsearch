@@ -1,11 +1,19 @@
-import { TestBed, async } from '@angular/core/testing';
 import { AppComponent } from './app.component';
+import { Component } from '@angular/core';
+import { TestBed, async } from '@angular/core/testing';
+
+@Component({
+  selector: 'app-wordsearch',
+  template: '<div></div>',
+})
+class MockWordsearchComponent { }
 
 describe('AppComponent', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [
-        AppComponent
+        AppComponent,
+        MockWordsearchComponent,
       ],
     }).compileComponents();
   }));
@@ -16,16 +24,4 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it(`should have as title 'wordsearch'`, () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.debugElement.componentInstance;
-    expect(app.title).toEqual('wordsearch');
-  });
-
-  it('should render title in a h1 tag', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    fixture.detectChanges();
-    const compiled = fixture.debugElement.nativeElement;
-    expect(compiled.querySelector('h1').textContent).toContain('Welcome to wordsearch!');
-  });
 });

@@ -1,3 +1,31 @@
-<p>
-  wordsearch works!
-</p>
+<div class="card">
+  <ng-container *ngIf="puzzle$ | async as puzzle; else loading">
+    <div class="card-body">
+
+      <h5 class="card-title">
+        Your word is:&nbsp;<strong>{{ puzzle.word }}</strong>.
+      </h5>
+      <h6 class="card-subtitle">
+        You must find all translations from
+        <strong> {{ unabbreviateLanguage(puzzle.source_language) }} </strong>
+        to
+        <strong> {{ unabbreviateLanguage(puzzle.target_language) }} </strong>
+        in the grid below.
+      </h6>
+
+      <div style="height: 500px; width: 500px; border 1px solid black;">
+      </div>
+
+      <div class="btn-group" role="group" aria-label="Puzzle actions">
+        <button type="button" class="btn btn-primary" (click)="getNewPuzzle()">
+          New Puzzle
+        </button>
+        <button type="button" class="btn btn-primary">Reveal Solution</button>
+      </div>
+
+    </div>
+  </ng-container>
+  <ng-template #loading>
+    Please wait, your puzzle is loading&hellip;
+  </ng-template>
+</div>
