@@ -1,0 +1,9 @@
+{
+  "/s3proxy": {
+    "target": "https://s3.amazonaws.com/duolingo-data/s3/js2/",
+    "secure": false,
+    "pathRewrite": {
+      "^/s3proxy": ""
+    }
+  }
+}
