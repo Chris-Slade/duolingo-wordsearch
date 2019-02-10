@@ -13,14 +13,19 @@
         in the grid below.
       </h6>
 
-      <div style="height: 500px; width: 500px; border 1px solid black;">
+      <div class="my-3">
+        <app-wordsearch-grid #grid [fontSize]="40" [puzzle]="puzzle">
+        </app-wordsearch-grid>
       </div>
 
       <div class="btn-group" role="group" aria-label="Puzzle actions">
         <button type="button" class="btn btn-primary" (click)="getNewPuzzle()">
           New Puzzle
         </button>
-        <button type="button" class="btn btn-primary">Reveal Solution</button>
+        <button type="button" class="btn btn-primary"
+          (click)="revealSolution()">
+          Reveal Solution
+        </button>
       </div>
 
     </div>
