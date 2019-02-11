@@ -1,8 +1,17 @@
 import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
-import { Point, PointText, Shape, Size } from 'paper';
+// @ts-ignore
+import { Item, Layer, Point, PointText, Project, Shape, Size } from 'paper';
 import * as paper from 'paper';
 
 import { PuzzleSpec } from '../shared/types';
+
+enum Layers {
+  Background = 0,
+  Letters,
+  Border,
+  Selection,
+  Cell,
+}
 
 @Component({
   selector: 'app-wordsearch-grid',
@@ -25,6 +34,7 @@ export class WordsearchGridComponent implements OnInit {
   @ViewChild('container')
   private container: ElementRef;
   private canvas: HTMLCanvasElement;
+  private project: Project;
 
   constructor() { }
 
@@ -38,7 +48,6 @@ export class WordsearchGridComponent implements OnInit {
   @Input()
   set puzzle(puzzle: PuzzleSpec) {
     this._puzzle = puzzle;
-    console.log('Got new puzzle:', this._puzzle);
     this.renderPuzzle(this._puzzle);
   }
   get puzzle(): PuzzleSpec { return this._puzzle }
@@ -70,41 +79,110 @@ export class WordsearchGridComponent implements OnInit {
     this.canvas.width = this.size;
     this.canvas.height = this.size;
     this.container.nativeElement.appendChild(this.canvas);
-    paper.setup(this.canvas);
-    this.drawGrid();
-  }
-
-  drawGrid(): void {
-    const background: Shape = paper.Shape.Rectangle(
-      new Point(0, 0),
-      new Size(this.size, this.size)
-    );
-    background.fillColor = 'white';
-
-    const size = new Size(this.cellSize, this.cellSize);
-    for (let x = 0; x < this.N; x++) {
-      for (let y = 0; y < this.N; y++) {
-        const point = new Point(x * this.cellSize, y * this.cellSize);
-        const rect: Shape = paper.Shape.Rectangle(point, size);
-        console.log('Drawing rectangle', rect);
-        rect.strokeColor = 'black';
-
-        const offset = new Point(
-          this.cellSize / 2,
-          this.cellSize - (this.fontSize * this.cellPaddingFactor)
-        );
-        const text = new PointText(point.add(offset));
-        text.justification = 'center';
-        text.fontFamily = 'mono';
-        text.fontSize = this.fontSize;
-        text.fillColor = 'black';
-        text.content = this.puzzle.character_grid[x][y].toUpperCase();
-      }
+    this.project = new Project(this.canvas);
+    try {
+      this.render();
+    }
+    catch (e) {
+      console.log('Error rendering puzzle:', e);
     }
   }
 
   revealSolution(): void {
     // TODO
+  }
+
+  private getLayer(layer: Layers): Layer {
+    return this.project.layers[layer];
+  }
+
+  private createLayers(): void {
+    this.project.insertLayer(Layers.Background, new Layer());
+    this.project.insertLayer(Layers.Letters, new Layer());
+    this.project.insertLayer(Layers.Border, new Layer());
+    this.project.insertLayer(Layers.Selection, new Layer());
+    this.project.insertLayer(Layers.Cell, new Layer());
+  }
+
+  private drawBackground(): void {
+    this.getLayer(Layers.Background).activate();
+    const background: Shape = paper.Shape.Rectangle(
+      new Point(0, 0),
+      new Size(this.size, this.size)
+    );
+    background.fillColor = 'white';
+  }
+
+  private render(): void {
+    this.createLayers();
+    this.drawBackground();
+    this.drawGrid();
+    this.setUpMouseHandlers();
+  }
+
+  private drawGrid(): void {
+    const borderSize = new Size(this.cellSize, this.cellSize);
+    const cellSize   = new Size(this.cellSize - 2, this.cellSize - 2);
+    const cellOffset = new Point(1, 1);
+    const textOffset = new Point(
+      this.cellSize / 2,
+      this.cellSize - (this.fontSize * this.cellPaddingFactor)
+    );
+
+    for (let x = 0; x < this.N; x++) {
+      for (let y = 0; y < this.N; y++) {
+        const point = new Point(x * this.cellSize, y * this.cellSize);
+        this.drawCellBorder(point, borderSize);
+        this.drawCell(point.add(cellOffset), cellSize);
+        this.drawLetter(
+          point.add(textOffset),
+          this.puzzle.character_grid[x][y].toUpperCase()
+        );
+      }
+    }
+  }
+
+  private drawCellBorder(point: Point, borderSize: Size): void {
+    this.getLayer(Layers.Border).activate();
+    const border: Shape = Shape.Rectangle(point, borderSize);
+    border.strokeColor = 'black';
+  }
+
+  private drawCell(point: Point, cellSize: Size): void {
+    this.getLayer(Layers.Cell).activate();
+    Shape.Rectangle({
+      point:     point,
+      size:      cellSize,
+      fillColor: 'white',
+      opacity:   0,
+    });
+  }
+
+  private drawLetter(point: Point, letter: string): void {
+    this.getLayer(Layers.Letters).activate();
+    new PointText({
+      point:         point,
+      content:       letter,
+      fillColor:     'black',
+      justification: 'center',
+      fontFamily:    'mono',
+      fontSize:      this.fontSize,
+    });
+  }
+
+  private setUpMouseHandlers(): void {
+    this.getLayer(Layers.Cell).children.forEach(cell => {
+      cell.onMouseDown = this.beginSelection.bind(this);
+      cell.onMouseUp   = this.endSelection.bind(this);
+    });
+  }
+
+  beginSelection(event: MouseEvent): void {
+    console.log(event); // TODO
+  }
+
+  endSelection(event: MouseEvent): void {
+    console.log(event); // TODO
   }
 
 }
