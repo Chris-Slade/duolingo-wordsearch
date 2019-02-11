@@ -1,4 +1,6 @@
 import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
+import { Point, PointText, Shape, Size } from 'paper';
+import * as paper from 'paper';
 
 import { PuzzleSpec } from '../shared/types';
 
@@ -23,7 +25,6 @@ export class WordsearchGridComponent implements OnInit {
   @ViewChild('container')
   private container: ElementRef;
   private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
 
   constructor() { }
 
@@ -64,67 +65,45 @@ export class WordsearchGridComponent implements OnInit {
   renderPuzzle(puzzle: PuzzleSpec): void {
     this.clearContainer();
     this.canvas = document.createElement('canvas');
-    const ctx = this.canvas.getContext('2d');
-    if (ctx == null) {
-      throw new Error('Failed to get CanvasRenderingContext2D');
-    }
-    this.ctx = ctx;
     this.N = puzzle.character_grid.length;
     this.size = this.N * this.cellSize;
     this.canvas.width = this.size;
     this.canvas.height = this.size;
     this.container.nativeElement.appendChild(this.canvas);
-
-    this.canvas.addEventListener('mousedown', this.onMousedown.bind(this));
-    this.canvas.addEventListener('mouseup', this.onMouseup.bind(this));
-    this.canvas.addEventListener('mousemove', this.onMousemove.bind(this));
-
+    paper.setup(this.canvas);
     this.drawGrid();
-
   }
 
   drawGrid(): void {
-    // Draw background
-    this.ctx.fillStyle = 'white';
-    this.ctx.fillRect(0, 0, this.size, this.size);
-    // Draw grid
-    this.ctx.fillStyle = 'black';
+    const background: Shape = paper.Shape.Rectangle(
+      new Point(0, 0),
+      new Size(this.size, this.size)
+    );
+    background.fillColor = 'white';
 
-    this.ctx.font = `${this.fontSize}px mono`;
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'middle';
-
+    const size = new Size(this.cellSize, this.cellSize);
     for (let x = 0; x < this.N; x++) {
       for (let y = 0; y < this.N; y++) {
-        this.ctx.strokeRect(
-          x * this.cellSize,
-          y * this.cellSize,
-          this.cellSize,
-          this.cellSize
+        const point = new Point(x * this.cellSize, y * this.cellSize);
+        const rect: Shape = paper.Shape.Rectangle(point, size);
+        console.log('Drawing rectangle', rect);
+        rect.strokeColor = 'black';
+
+        const offset = new Point(
+          this.cellSize / 2,
+          this.cellSize - (this.fontSize * this.cellPaddingFactor)
         );
-        this.ctx.fillText(
-          this.puzzle.character_grid[x][y].toUpperCase(),
-          x * this.cellSize + this.cellSize / 2,
-          y * this.cellSize + this.cellSize / 2
-            + (this.fontSize * this.cellPaddingFactor / 2) - 1,
-        );
+        const text = new PointText(point.add(offset));
+        text.justification = 'center';
+        text.fontFamily = 'mono';
+        text.fontSize = this.fontSize;
+        text.fillColor = 'black';
+        text.content = this.puzzle.character_grid[x][y].toUpperCase();
       }
     }
   }
 
   revealSolution(): void {
-    // TODO
-  }
-
-  onMousedown(event: MouseEvent): void {
-    // TODO
-  }
-
-  onMouseup(event: MouseEvent): void {
-    // TODO
-  }
-
-  onMousemove(event: MouseEvent): void {
     // TODO
   }
 
