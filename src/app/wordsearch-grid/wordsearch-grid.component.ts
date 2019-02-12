@@ -1,9 +1,9 @@
-import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
-// @ts-ignore
-import { Group, Item, Layer, Point, PointText, Project, Shape, Size } from 'paper';
 import * as paper from 'paper';
+import { Component, ElementRef, EventEmitter, Input, ViewChild } from '@angular/core';
+import { Group, Item, Layer, Path, Point, PointText, Project, Rectangle, Shape, Size } from 'paper';
 
 import { PuzzleSpec } from '../shared/types';
+import { angleBetween, midpoint } from '../shared/util';
 
 enum Layers {
   Background = 0,
@@ -12,12 +12,14 @@ enum Layers {
   Selection,
 }
 
+const SELECTION_COLOR = '#007BFF';
+
 @Component({
   selector: 'app-wordsearch-grid',
   templateUrl: './wordsearch-grid.component.html',
   styleUrls: ['./wordsearch-grid.component.scss']
 })
-export class WordsearchGridComponent implements OnInit {
+export class WordsearchGridComponent {
 
   private _puzzle: PuzzleSpec;
 
@@ -28,6 +30,8 @@ export class WordsearchGridComponent implements OnInit {
   readonly cellPaddingFactor = 0.25;
   private N: number; // Number of cells
   private size = 0;
+  private _solved = false;
+  public solvedEvent = new EventEmitter<boolean>();
 
   // Elements for rendering
   @ViewChild('container')
@@ -37,28 +41,32 @@ export class WordsearchGridComponent implements OnInit {
 
   constructor() { }
 
-  ngOnInit() {
-  }
-
-  ngAfterViewInit() {
-    this.renderPuzzle(this._puzzle);
-  }
-
   @Input()
   set puzzle(puzzle: PuzzleSpec) {
     this._puzzle = puzzle;
+    console.log(puzzle); // XXX
     this.renderPuzzle(this._puzzle);
   }
   get puzzle(): PuzzleSpec { return this._puzzle }
+
+  set solved(value: boolean) {
+    this._solved = value;
+    this.solvedEvent.emit(value);
+  }
+  get solved() { return this._solved; }
 
   get cellSize(): number {
     return this.fontSize + this.fontSize * this.cellPaddingFactor;
   }
 
+  private getLayer(layer: Layers): Layer {
+    return this.project.layers[layer];
+  }
+
   /**
    * Clean up resources associated with the currently rendered puzzle
    */
-  private clearContainer(): void {
+  private clearPuzzle(): void {
     const c = this.container.nativeElement;
     while (c != null && c.firstChild != null) {
       c.removeChild(c.firstChild);
@@ -69,10 +77,11 @@ export class WordsearchGridComponent implements OnInit {
         paper.projects.splice(idx, 1);
       }
     }
+    this.solved = false;
   }
 
-  renderPuzzle(puzzle: PuzzleSpec): void {
-    this.clearContainer();
+  private renderPuzzle(puzzle: PuzzleSpec): void {
+    this.clearPuzzle();
     this.canvas = document.createElement('canvas');
     this.N = puzzle.character_grid.length;
     this.size = this.N * this.cellSize;
@@ -88,12 +97,9 @@ export class WordsearchGridComponent implements OnInit {
     }
   }
 
-  revealSolution(): void {
-    // TODO
-  }
-
-  private getLayer(layer: Layers): Layer {
-    return this.project.layers[layer];
+  public revealSolution(): void {
+    this.drawAnswerBubbles();
+    this.solved = true;
   }
 
   private render(): void {
@@ -104,15 +110,63 @@ export class WordsearchGridComponent implements OnInit {
     console.log(this.project);
   }
 
+  private getCellAt(x: number, y: number): Item {
+    const hit = this.getLayer(Layers.Cell)
+      .hitTest(new Point(x * this.cellSize, y * this.cellSize));
+    if (hit != null) {
+      return hit.item;
+    }
+    else {
+      throw new Error(`Failed to find cell at (${x}, ${y})`);
+    }
+  }
+
+  private drawAnswerBubbles(): void {
+    this.getLayer(Layers.Answer).activate();
+    for (const locString of Object.keys(this.puzzle.word_locations)) {
+      const coords = locString.split(',').map(num => parseInt(num, 10));
+      if (coords.length % 2 !== 0 || coords.length < 4) {
+        throw new Error('Illegal format for word_locations');
+      }
+      this.drawAnswerBubble(
+        [coords[0], coords[1]],
+        [coords[coords.length - 2], coords[coords.length - 1]]
+      );
+    }
+  }
+
+  /**
+   * Draw an answer bubble enclosing the line of cells between (ax, ay) and
+   * (bx, by).
+   */
+  private drawAnswerBubble(start: [number, number], end: [number, number]): void {
+    const startCell = this.getCellAt(...start);
+    const endCell   = this.getCellAt(...end);
+    const center    = midpoint(startCell.position, endCell.position);
+    const width     = startCell.position.getDistance(endCell.position)
+      + this.cellSize - 6;
+    const height    = this.cellSize - 6;
+    const rectangle = new Rectangle(
+      center.subtract(new Point(width / 2, height / 2)),
+      new Size(width, height),
+    );
+    const path = new Path.Rectangle(rectangle, this.fontSize / 2);
+    path.rotate(angleBetween(startCell.position, endCell.position));
+    path.strokeColor = SELECTION_COLOR;
+    path.strokeWidth = 2;
+  }
+
   private createLayers(): void {
-    this.project.insertLayer(Layers.Background, new Layer({ name: 'background' }));
-    this.project.insertLayer(Layers.Selection, new Layer({ name: 'selection' }));
-    this.project.insertLayer(Layers.Cell, new Layer({ name: 'cell' }));
+    const newLayer = (index: number, name: string) =>
+      this.project.insertLayer(index, new Layer({ name }));
+    newLayer(Layers.Background, Layers[Layers.Background]);
+    newLayer(Layers.Selection, Layers[Layers.Selection]);
+    newLayer(Layers.Cell, Layers[Layers.Cell]);
   }
 
   private drawBackground(): void {
     this.getLayer(Layers.Background).activate();
-    const background: Shape = paper.Shape.Rectangle(
+    const background = Shape.Rectangle(
       new Point(0, 0),
       new Size(this.size, this.size)
     );
@@ -126,7 +180,7 @@ export class WordsearchGridComponent implements OnInit {
         this.drawCell(
           point,
           this.cellSize,
-          this.puzzle.character_grid[x][y].toUpperCase()
+          this.puzzle.character_grid[y][x].toUpperCase()
         );
       }
     }
